@@ -56,7 +56,7 @@
     </div>
 
     <script>
-        let historial = []; // Aquí guardaremos la memoria a corto plazo
+        let historial = []; 
 
         function agregarMensaje(rol, texto) {
             const chatBox = document.getElementById("chat-box");
@@ -68,7 +68,7 @@
         }
 
         async function enviarMensaje() {
-            const apiUrl = document.getElementById("apiUrl").value.trim();
+            let apiUrl = document.getElementById("apiUrl").value.trim();
             const userInput = document.getElementById("userInput");
             const btnSend = document.getElementById("btnSend");
             const botProfile = document.getElementById("botProfile").value;
@@ -77,6 +77,11 @@
             if (!apiUrl) { alert("¡Falta el enlace de Ngrok!"); return; }
             if (!texto) return;
 
+            // Limpiar la URL por si tiene una barra al final
+            if (apiUrl.endsWith("/")) {
+                apiUrl = apiUrl.slice(0, -1);
+            }
+
             // Mostrar en UI
             agregarMensaje("user", texto);
             userInput.value = "";
@@ -84,36 +89,39 @@
             btnSend.textContent = "Pensando...";
 
             try {
-                // Hacer la petición a nuestra API en Colab
                 const respuesta = await fetch(apiUrl + "/chat", {
                     method: "POST",
                     headers: { 
                         "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true" // Truco vital para que Ngrok no bloquee la API
+                        "ngrok-skip-browser-warning": "69420", 
+                        "Bypass-Tunnel-Reminder": "true"       
                     },
                     body: JSON.stringify({
                         perfil_bot: botProfile,
-                        historial: historial.slice(-10), // Mandamos solo los últimos 10 msgs para no saturar
+                        historial: historial.slice(-10), 
                         nuevo_mensaje: texto
                     })
                 });
 
+                if (!respuesta.ok) {
+                    throw new Error(`HTTP error! status: ${respuesta.status}`);
+                }
+
                 const data = await respuesta.json();
                 
-                // Mostrar respuesta
                 agregarMensaje("assistant", data.respuesta);
                 
-                // Guardar en el historial local para la próxima pregunta
                 historial.push({ role: "user", content: texto });
                 historial.push({ role: "assistant", content: data.respuesta });
 
             } catch (error) {
-                agregarMensaje("assistant", "❌ Error al conectar con el servidor. Revisa el link de Ngrok o si Colab sigue encendido.");
-                console.error(error);
+                agregarMensaje("assistant", "❌ Error al conectar. Verifica que el link de Ngrok sea correcto y que Colab siga corriendo.");
+                console.error("Detalle del error:", error);
             }
 
             btnSend.disabled = false;
             btnSend.textContent = "Enviar";
+            userInput.focus();
         }
 
         function handleEnter(event) {
@@ -126,21 +134,26 @@
                 return;
             }
 
-            const apiUrl = document.getElementById("apiUrl").value.trim();
+            let apiUrl = document.getElementById("apiUrl").value.trim();
             const btnEvolve = document.getElementById("btnEvolve");
             const botProfile = document.getElementById("botProfile").value;
 
             if (!apiUrl) { alert("¡Falta el enlace de Ngrok!"); return; }
 
+            if (apiUrl.endsWith("/")) {
+                apiUrl = apiUrl.slice(0, -1);
+            }
+
             btnEvolve.disabled = true;
-            btnEvolve.textContent = "Analizando y Evolucionando...";
+            btnEvolve.textContent = "Analizando...";
 
             try {
                 const respuesta = await fetch(apiUrl + "/evolucionar", {
                     method: "POST",
                     headers: { 
                         "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true"
+                        "ngrok-skip-browser-warning": "69420",
+                        "Bypass-Tunnel-Reminder": "true"
                     },
                     body: JSON.stringify({
                         perfil_actual: botProfile,
@@ -148,15 +161,18 @@
                     })
                 });
 
+                if (!respuesta.ok) {
+                    throw new Error(`HTTP error! status: ${respuesta.status}`);
+                }
+
                 const data = await respuesta.json();
                 
-                // Actualizamos la caja de texto con la nueva personalidad
                 document.getElementById("botProfile").value = data.nuevo_perfil;
-                alert("¡Evolución completada! La IA ha actualizado su propia personalidad basada en este chat.");
+                alert("¡Evolución completada! La IA ha actualizado su perfil.");
                 
             } catch (error) {
-                alert("Error al evolucionar el bot.");
-                console.error(error);
+                alert("Error al intentar evolucionar la IA. Revisa la consola.");
+                console.error("Detalle del error:", error);
             }
 
             btnEvolve.disabled = false;
