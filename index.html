@@ -96,13 +96,26 @@
 
             if (apiUrl.endsWith("/")) apiUrl = apiUrl.slice(0, -1);
 
-            agregarMensaje("user", texto);
+            // 1. Mostrar mensaje del usuario
+            const chatBox = document.getElementById("chat-box");
+            const divUser = document.createElement("div");
+            divUser.className = "msg user";
+            divUser.textContent = texto;
+            chatBox.appendChild(divUser);
+            
             userInput.value = "";
             btnSend.disabled = true;
             btnSend.textContent = "Procesando...";
 
+            // 2. Crear caja vacía para la IA que se irá llenando
+            const divAssistant = document.createElement("div");
+            divAssistant.className = "msg assistant";
+            divAssistant.innerHTML = "<em>Pensando...</em>";
+            chatBox.appendChild(divAssistant);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
             try {
-                // Petición ajustada para la API del Coder (sin perfil_bot)
+                // Hacer petición al backend
                 const respuesta = await fetch(apiUrl + "/chat", {
                     method: "POST",
                     headers: { 
@@ -111,21 +124,38 @@
                         "Bypass-Tunnel-Reminder": "true"
                     },
                     body: JSON.stringify({
-                        historial: historial.slice(-8), // Enviamos los últimos 8 mensajes
+                        historial: historial.slice(-8),
                         nuevo_mensaje: texto
                     })
                 });
 
                 if (!respuesta.ok) throw new Error(`HTTP error! status: ${respuesta.status}`);
 
-                const data = await respuesta.json();
-                agregarMensaje("assistant", data.respuesta);
-                
+                // 3. LA MAGIA DEL STREAMING: Leer texto a medida que llega
+                const reader = respuesta.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let respuestaCompleta = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    // Sumar el pedacito de texto nuevo
+                    respuestaCompleta += decoder.decode(value, { stream: true });
+                    
+                    // Renderizar con colores en tiempo real
+                    divAssistant.innerHTML = marked.parse(respuestaCompleta);
+                    
+                    // Bajar el scroll automáticamente
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+
+                // 4. Guardar charla para la memoria a corto plazo
                 historial.push({ role: "user", content: texto });
-                historial.push({ role: "assistant", content: data.respuesta });
+                historial.push({ role: "assistant", content: respuestaCompleta });
 
             } catch (error) {
-                agregarMensaje("assistant", "❌ Error de conexión al servidor de Colab.");
+                divAssistant.innerHTML = "❌ Error de conexión al servidor.";
                 console.error(error);
             }
 
