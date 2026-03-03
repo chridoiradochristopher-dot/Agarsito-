@@ -33,11 +33,11 @@
 
     <div class="main-container">
         <div class="header">
-            <h2>💻 Qwen Coder</h2>
+            <h2>💻 Qwen Coder 14B (En Vivo)</h2>
             <input type="text" id="apiUrl" placeholder="Pega aquí el enlace de Ngrok...">
         </div>
         <div id="chat-box">
-            <div class="msg assistant">Terminal lista. Esperando instrucciones de código.</div>
+            <div class="msg assistant">Terminal lista. Esperando instrucciones de código...</div>
         </div>
         <div class="input-area">
             <textarea id="userInput" placeholder="Escribe tu instrucción..." onkeydown="handleEnter(event)"></textarea>
@@ -46,32 +46,23 @@
     </div>
 
     <script>
+        // Configuración blindada para que no crashee al recibir código a medias
         marked.setOptions({
             highlight: function(code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
-                    return hljs.highlight(code, { language: lang }).value;
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (e) {}
                 }
-                return hljs.highlightAuto(code).value;
+                try {
+                    return hljs.highlightAuto(code).value;
+                } catch (e) {}
+                return code; // Si todo falla, devuelve el código en texto plano para no crashear
             },
             breaks: true
         });
 
         let historial = [];
-
-        function agregarMensaje(rol, texto, renderizarMarkdown = false) {
-            const chatBox = document.getElementById("chat-box");
-            const div = document.createElement("div");
-            div.className = `msg ${rol}`;
-            
-            if (renderizarMarkdown) {
-                div.innerHTML = marked.parse(texto);
-            } else {
-                div.textContent = texto; 
-            }
-            
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
 
         async function enviarMensaje() {
             let apiUrl = document.getElementById("apiUrl").value.trim();
@@ -84,13 +75,25 @@
 
             if (apiUrl.endsWith("/")) apiUrl = apiUrl.slice(0, -1);
 
-            agregarMensaje("user", texto, false);
+            // 1. Mostrar mensaje del usuario
+            const chatBox = document.getElementById("chat-box");
+            const divUser = document.createElement("div");
+            divUser.className = "msg user";
+            divUser.textContent = texto;
+            chatBox.appendChild(divUser);
+            
             userInput.value = "";
             btnSend.disabled = true;
-            btnSend.textContent = "Procesando...";
+            btnSend.textContent = "Pensando...";
+
+            // 2. Crear caja vacía para la IA
+            const divAssistant = document.createElement("div");
+            divAssistant.className = "msg assistant";
+            divAssistant.innerHTML = "<em>...</em>";
+            chatBox.appendChild(divAssistant);
+            chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                // Petición clásica (estable, como en tu primer HTML)
                 const respuesta = await fetch(apiUrl + "/chat", {
                     method: "POST",
                     headers: { 
@@ -106,16 +109,26 @@
 
                 if (!respuesta.ok) throw new Error(`Error de servidor: ${respuesta.status}`);
 
-                const data = await respuesta.json();
-                
-                // Pintamos la respuesta completa con los colores de código
-                agregarMensaje("assistant", data.respuesta, true);
-                
+                // 3. LA MAGIA DEL STREAMING EN VIVO
+                const reader = respuesta.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let respuestaCompleta = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    respuestaCompleta += decoder.decode(value, { stream: true });
+                    // Parseo seguro a medida que llega
+                    divAssistant.innerHTML = marked.parse(respuestaCompleta);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+
                 historial.push({ role: "user", content: texto });
-                historial.push({ role: "assistant", content: data.respuesta });
+                historial.push({ role: "assistant", content: respuestaCompleta });
 
             } catch (error) {
-                agregarMensaje("assistant", "❌ Error al conectar. Verifica el enlace y que Colab esté encendido.", false);
+                divAssistant.innerHTML = "❌ Error de conexión. Revisa que el enlace de Ngrok sea correcto y que Colab esté encendido.";
                 console.error(error);
             }
 
