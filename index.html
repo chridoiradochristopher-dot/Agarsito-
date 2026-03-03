@@ -5,30 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terminal - IA Programador Privado</title>
 
-    <script src="[https://cdn.jsdelivr.net/npm/marked/marked.min.js](https://cdn.jsdelivr.net/npm/marked/marked.min.js)"></script>
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css](https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css)">
-    <script src="[https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js](https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js)"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; display: flex; justify-content: center; height: 100vh; box-sizing: border-box; }
         .main-container { width: 100%; max-width: 1000px; display: flex; flex-direction: column; background-color: #161b22; border-radius: 10px; border: 1px solid #30363d; overflow: hidden; }
-        
         .header { background-color: #010409; padding: 15px 20px; border-bottom: 1px solid #30363d; display: flex; gap: 15px; align-items: center; }
         h2 { margin: 0; font-size: 1.2rem; color: #58a6ff; white-space: nowrap; }
         input[type="text"] { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; font-family: monospace; }
-        
         #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        
-        /* Estilos de los mensajes */
         .msg { padding: 15px 20px; border-radius: 8px; max-width: 90%; line-height: 1.5; font-size: 15px; }
         .msg.user { background-color: #1f6feb; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .msg.assistant { background-color: #21262d; border: 1px solid #30363d; align-self: flex-start; border-bottom-left-radius: 2px; width: 100%; box-sizing: border-box; }
-        
-        /* MAGIA CSS PARA LOS CUADROS DE CÓDIGO */
         pre { background-color: #0d1117 !important; border: 1px solid #30363d; border-radius: 6px; padding: 15px; overflow-x: auto; margin: 10px 0; }
         code { font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; }
         p code { background-color: #30363d; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
-        
         .input-area { padding: 20px; background-color: #010409; border-top: 1px solid #30363d; display: flex; gap: 10px; }
         textarea { flex: 1; padding: 15px; border-radius: 5px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; resize: vertical; height: 60px; font-family: monospace; }
         button { background-color: #238636; color: white; border: none; padding: 0 25px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
@@ -40,22 +33,19 @@
 
     <div class="main-container">
         <div class="header">
-            <h2>💻 Qwen Coder 14B</h2>
-            <input type="text" id="apiUrl" placeholder="Pega aquí el enlace de Ngrok de tu Colab Programador...">
+            <h2>💻 Qwen Coder</h2>
+            <input type="text" id="apiUrl" placeholder="Pega aquí el enlace de Ngrok...">
         </div>
-
         <div id="chat-box">
-            <div class="msg assistant">Terminal lista. Esperando instrucciones de arquitectura o fragmentos de código para analizar.</div>
+            <div class="msg assistant">Terminal lista. Esperando instrucciones de código.</div>
         </div>
-        
         <div class="input-area">
-            <textarea id="userInput" placeholder="Pega tu código o escribe tu instrucción (Shift + Enter para nueva línea)..." onkeydown="handleEnter(event)"></textarea>
+            <textarea id="userInput" placeholder="Escribe tu instrucción..." onkeydown="handleEnter(event)"></textarea>
             <button onclick="enviarMensaje()" id="btnSend">Ejecutar</button>
         </div>
     </div>
 
     <script>
-        // Configurar Marked.js para que use Highlight.js y le dé color al código
         marked.setOptions({
             highlight: function(code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
@@ -63,21 +53,19 @@
                 }
                 return hljs.highlightAuto(code).value;
             },
-            breaks: true // Respeta los saltos de línea normales
+            breaks: true
         });
 
         let historial = [];
 
-        function agregarMensaje(rol, texto) {
+        function agregarMensaje(rol, texto, renderizarMarkdown = false) {
             const chatBox = document.getElementById("chat-box");
             const div = document.createElement("div");
             div.className = `msg ${rol}`;
             
-            // Si es el asistente, lo pasamos por el renderizador de Markdown
-            if (rol === 'assistant') {
+            if (renderizarMarkdown) {
                 div.innerHTML = marked.parse(texto);
             } else {
-                // Si es el usuario, lo mostramos como texto plano para evitar que se rompa si pega HTML
                 div.textContent = texto; 
             }
             
@@ -96,26 +84,13 @@
 
             if (apiUrl.endsWith("/")) apiUrl = apiUrl.slice(0, -1);
 
-            // 1. Mostrar mensaje del usuario
-            const chatBox = document.getElementById("chat-box");
-            const divUser = document.createElement("div");
-            divUser.className = "msg user";
-            divUser.textContent = texto;
-            chatBox.appendChild(divUser);
-            
+            agregarMensaje("user", texto, false);
             userInput.value = "";
             btnSend.disabled = true;
             btnSend.textContent = "Procesando...";
 
-            // 2. Crear caja vacía para la IA que se irá llenando
-            const divAssistant = document.createElement("div");
-            divAssistant.className = "msg assistant";
-            divAssistant.innerHTML = "<em>Pensando...</em>";
-            chatBox.appendChild(divAssistant);
-            chatBox.scrollTop = chatBox.scrollHeight;
-
             try {
-                // Hacer petición al backend
+                // Petición clásica (estable, como en tu primer HTML)
                 const respuesta = await fetch(apiUrl + "/chat", {
                     method: "POST",
                     headers: { 
@@ -124,38 +99,23 @@
                         "Bypass-Tunnel-Reminder": "true"
                     },
                     body: JSON.stringify({
-                        historial: historial.slice(-8),
+                        historial: historial.slice(-8), 
                         nuevo_mensaje: texto
                     })
                 });
 
-                if (!respuesta.ok) throw new Error(`HTTP error! status: ${respuesta.status}`);
+                if (!respuesta.ok) throw new Error(`Error de servidor: ${respuesta.status}`);
 
-                // 3. LA MAGIA DEL STREAMING: Leer texto a medida que llega
-                const reader = respuesta.body.getReader();
-                const decoder = new TextDecoder("utf-8");
-                let respuestaCompleta = "";
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    // Sumar el pedacito de texto nuevo
-                    respuestaCompleta += decoder.decode(value, { stream: true });
-                    
-                    // Renderizar con colores en tiempo real
-                    divAssistant.innerHTML = marked.parse(respuestaCompleta);
-                    
-                    // Bajar el scroll automáticamente
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                }
-
-                // 4. Guardar charla para la memoria a corto plazo
+                const data = await respuesta.json();
+                
+                // Pintamos la respuesta completa con los colores de código
+                agregarMensaje("assistant", data.respuesta, true);
+                
                 historial.push({ role: "user", content: texto });
-                historial.push({ role: "assistant", content: respuestaCompleta });
+                historial.push({ role: "assistant", content: data.respuesta });
 
             } catch (error) {
-                divAssistant.innerHTML = "❌ Error de conexión al servidor.";
+                agregarMensaje("assistant", "❌ Error al conectar. Verifica el enlace y que Colab esté encendido.", false);
                 console.error(error);
             }
 
@@ -165,7 +125,6 @@
         }
 
         function handleEnter(event) {
-            // Permite enviar con Enter, y hacer saltos de línea con Shift+Enter
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 enviarMensaje();
