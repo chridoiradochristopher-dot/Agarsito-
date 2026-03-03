@@ -38,22 +38,35 @@
         <input type="text" id="user-input" placeholder="Escribe tu petición aquí..." onkeypress="if(event.key === 'Enter') enviarMensaje()">
         <button id="send-btn" onclick="enviarMensaje()">Enviar</button>
     </div>
-
     <script>
-        // ⚠️ REEMPLAZA ESTO CON TU URL DE NGROK
-        const NGROK_URL = "https://3APMv1ci48ckVX0f680jZ2DGDu4_gvX8aUCEEdqPNxyKKKdc.ngrok-free.app"; 
+        // ⚠️ REEMPLAZA ESTO CON TU URL DE NGROK (ej. https://1234-abcd.ngrok-free.app)
+        const NGROK_URL = "https://TU_URL_DE_NGROK.ngrok-free.app"; 
         let historial = [];
+
+        // ¡ESTA ERA LA FUNCIÓN QUE FALTABA!
+        function agregarMensajeUI(rol, texto) {
+            const chatContainer = document.getElementById("chat-container");
+            const div = document.createElement("div");
+            div.className = "mensaje " + rol;
+            div.innerText = texto; // Usamos innerText para que no interprete HTML en tu pregunta
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
 
         async function enviarMensaje() {
             const input = document.getElementById("user-input");
             const mensaje = input.value.trim();
             if (!mensaje) return;
 
+            // Mostramos el mensaje del usuario en la interfaz
             agregarMensajeUI("user", mensaje);
+            
+            // Bloqueamos el input mientras responde
             input.value = "";
             input.disabled = true;
             document.getElementById("send-btn").disabled = true;
 
+            // Creamos el contenedor para la respuesta de la IA
             const chatContainer = document.getElementById("chat-container");
             const divRespuesta = document.createElement("div");
             divRespuesta.className = "mensaje assistant";
@@ -62,12 +75,19 @@
             try {
                 const response = await fetch(`${NGROK_URL}/chat`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "ngrok-skip-browser-warning": "true" // ⚠️ Esto evita que Ngrok bloquee la conexión
+                    },
                     body: JSON.stringify({
                         historial: historial,
                         nuevo_mensaje: mensaje
                     })
                 });
+
+                if (!response.ok) {
+                    throw new Error("Error en el servidor");
+                }
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -85,13 +105,16 @@
                     chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
 
+                // Guardamos en el historial para que la IA tenga memoria
                 historial.push({ role: "user", content: mensaje });
                 historial.push({ role: "assistant", content: textoCompleto });
 
             } catch (error) {
-                divRespuesta.innerHTML += "<br><span style='color:red;'>Error de conexión con la API de Ngrok.</span>";
+                console.error(error);
+                divRespuesta.innerHTML = "<span style='color:#ff6b6b;'>❌ Error de conexión. ¿Está Ngrok encendido y actualizaste la URL?</span>";
             }
 
+            // Desbloqueamos el input
             input.disabled = false;
             document.getElementById("send-btn").disabled = false;
             input.focus();
@@ -123,9 +146,8 @@
 
         // Función global para copiar el texto
         window.copiarCodigo = function(boton) {
-            // Encontrar la etiqueta <code> que está debajo de este botón
             const bloqueCodigo = boton.parentElement.nextElementSibling.querySelector('code');
-            const textoCodigo = bloqueCodigo.innerText; // Usamos innerText para mantener los saltos de línea correctos
+            const textoCodigo = bloqueCodigo.innerText; 
 
             navigator.clipboard.writeText(textoCodigo).then(() => {
                 const textoOriginal = boton.innerText;
